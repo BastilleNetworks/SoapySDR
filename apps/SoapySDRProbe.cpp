@@ -40,7 +40,7 @@ std::string toString(const std::vector<double> &nums, const double scale)
 {
     std::stringstream ss;
 
-    if (nums.size() > 3)
+    if (nums.size() > 8)
     {
         ss << "[" << (nums.front()/scale) << ", " << (nums.back()/scale) << "]";
         return ss.str();
@@ -138,7 +138,7 @@ static std::string probeChannel(SoapySDR::Device *device, const int dir, const s
     //native
     double fullScale = 0.0;
     std::string native = device->getNativeStreamFormat(dir, chan, fullScale);
-    ss << "  Native format: " << native << " [full-scale=" << fullScale << "]" << std::endl;    
+    ss << "  Native format: " << native << " [full-scale=" << fullScale << "]" << std::endl;
 
     //stream args
     std::string streamArgs = toString(device->getStreamArgsInfo(dir, chan));
