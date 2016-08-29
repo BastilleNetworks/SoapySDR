@@ -43,6 +43,13 @@
 %include <std_map.i>
 %include <SoapySDR/Types.hpp>
 
+//handle arm 32-bit case where size_t and unsigned are the same
+#ifdef SIZE_T_IS_UNSIGNED_INT
+%typedef unsigned int size_t;
+#else
+%template(SoapySDRUnsignedList) std::vector<unsigned>;
+#endif
+
 %template(SoapySDRKwargs) std::map<std::string, std::string>;
 %template(SoapySDRKwargsList) std::vector<SoapySDR::Kwargs>;
 %template(SoapySDRArgInfoList) std::vector<SoapySDR::ArgInfo>;

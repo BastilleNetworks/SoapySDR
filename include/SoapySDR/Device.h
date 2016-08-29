@@ -31,10 +31,20 @@ typedef struct SoapySDRDevice SoapySDRDevice;
 typedef struct SoapySDRStream SoapySDRStream;
 
 /*!
+ * Get the last status code after a Device API call.
+ * The status code is cleared on entry to each Device call.
+ * When an device API call throws, the C bindings catch
+ * the exception, and set a non-zero last status code.
+ * Use lastStatus() to determine success/failure for
+ * Device calls without integer status return codes.
+ */
+SOAPY_SDR_API int SoapySDRDevice_lastStatus(void);
+
+/*!
  * Get the last error message after a device call fails.
  * When an device API call throws, the C bindings catch
  * the exception, store its message in thread-safe storage,
- * and return a non-zero status code to inidicate failure.
+ * and return a non-zero status code to indicate failure.
  * Use lastError() to access the exception's error message.
  */
 SOAPY_SDR_API const char *SoapySDRDevice_lastError(void);
@@ -74,7 +84,7 @@ SOAPY_SDR_API SoapySDRDevice *SoapySDRDevice_make(const SoapySDRKwargs *args);
  * For every call to make, there should be a matched call to unmake.
  *
  * \param args a markup string of key/value arguments
- * \return a pointer to a new Device object
+ * \return a pointer to a new Device object or null for error
  */
 SOAPY_SDR_API SoapySDRDevice *SoapySDRDevice_makeStrArgs(const char *args);
 
@@ -85,8 +95,9 @@ SOAPY_SDR_API SoapySDRDevice *SoapySDRDevice_makeStrArgs(const char *args);
  * from multiple threads should protect this call with a mutex.
  *
  * \param device a pointer to a device object
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_unmake(SoapySDRDevice *device);
+SOAPY_SDR_API int SoapySDRDevice_unmake(SoapySDRDevice *device);
 
 /*******************************************************************
  * Identification API
@@ -136,7 +147,7 @@ SOAPY_SDR_API int SoapySDRDevice_setFrontendMapping(SoapySDRDevice *device, cons
  * Get the mapping configuration string.
  * \param device a pointer to a device instance
  * \param direction the channel direction RX or TX
- * \param the vendor-specific mapping string
+ * \return the vendor-specific mapping string
  */
 SOAPY_SDR_API char *SoapySDRDevice_getFrontendMapping(const SoapySDRDevice *device, const int direction);
 
@@ -246,8 +257,9 @@ SOAPY_SDR_API int SoapySDRDevice_setupStream(SoapySDRDevice *device,
  * Close an open stream created by setupStream
  * \param device a pointer to a device instance
  * \param stream the opaque pointer to a stream handle
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_closeStream(SoapySDRDevice *device, SoapySDRStream *stream);
+SOAPY_SDR_API int SoapySDRDevice_closeStream(SoapySDRDevice *device, SoapySDRStream *stream);
 
 /*!
  * Get the stream's maximum transmission unit (MTU) in number of elements.
@@ -478,8 +490,6 @@ SOAPY_SDR_API void SoapySDRDevice_releaseReadBuffer(SoapySDRDevice *device,
  * \param stream the opaque pointer to a stream handle
  * \param handle an index value used in the release() call
  * \param buffs an array of void* buffers num chans in size
- * \param flags optional input flags and output flags
- * \param timeNs the buffer's timestamp in nanoseconds
  * \param timeoutUs the timeout in microseconds
  * \return the number of available elements per buffer or error
  */
@@ -604,8 +614,9 @@ SOAPY_SDR_API int SoapySDRDevice_setDCOffset(SoapySDRDevice *device, const int d
  * \param channel an available channel on the device
  * \param [out] offsetI the relative correction (1.0 max)
  * \param [out] offsetQ the relative correction (1.0 max)
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_getDCOffset(const SoapySDRDevice *device, const int direction, const size_t channel, double *offsetI, double *offsetQ);
+SOAPY_SDR_API int SoapySDRDevice_getDCOffset(const SoapySDRDevice *device, const int direction, const size_t channel, double *offsetI, double *offsetQ);
 
 /*!
  * Does the device support frontend IQ balance correction?
@@ -634,8 +645,9 @@ SOAPY_SDR_API int SoapySDRDevice_setIQBalance(SoapySDRDevice *device, const int 
  * \param channel an available channel on the device
  * \param [out] balanceI the relative correction (1.0 max)
  * \param [out] balanceQ the relative correction (1.0 max)
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int direction, const size_t channel, double *balanceI, double *balanceQ);
+SOAPY_SDR_API int SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int direction, const size_t channel, double *balanceI, double *balanceQ);
 
 /*******************************************************************
  * Gain API
@@ -686,7 +698,6 @@ SOAPY_SDR_API bool SoapySDRDevice_getGainMode(const SoapySDRDevice *device, cons
  * \param device a pointer to a device instance
  * \param direction the channel direction RX or TX
  * \param channel an available channel on the device
- * \param name the name of an amplification element
  * \param value the new amplification value in dB
  * \return an error code or 0 for success
  */
@@ -1036,8 +1047,9 @@ SOAPY_SDR_API long long SoapySDRDevice_getHardwareTime(const SoapySDRDevice *dev
  * \param device a pointer to a device instance
  * \param timeNs time in nanoseconds
  * \param what optional argument
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_setHardwareTime(SoapySDRDevice *device, const long long timeNs, const char *what);
+SOAPY_SDR_API int SoapySDRDevice_setHardwareTime(SoapySDRDevice *device, const long long timeNs, const char *what);
 
 /*!
  * Set the time of subsequent configuration calls.
@@ -1047,8 +1059,9 @@ SOAPY_SDR_API void SoapySDRDevice_setHardwareTime(SoapySDRDevice *device, const 
  * \param device a pointer to a device instance
  * \param timeNs time in nanoseconds
  * \param what optional argument
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_setCommandTime(SoapySDRDevice *device, const long long timeNs, const char *what);
+SOAPY_SDR_API int SoapySDRDevice_setCommandTime(SoapySDRDevice *device, const long long timeNs, const char *what);
 
 /*******************************************************************
  * Sensor API
@@ -1136,8 +1149,9 @@ SOAPY_SDR_API char **SoapySDRDevice_listRegisterInterfaces(const SoapySDRDevice 
  * \param name the name of a available register interface
  * \param addr the register address
  * \param value the register value
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeNamedRegister(SoapySDRDevice *device, const char *name, const unsigned addr, const unsigned value);
+SOAPY_SDR_API int SoapySDRDevice_writeRegister(SoapySDRDevice *device, const char *name, const unsigned addr, const unsigned value);
 
 /*!
  * Read a register on the device given the interface name.
@@ -1146,27 +1160,32 @@ SOAPY_SDR_API void SoapySDRDevice_writeNamedRegister(SoapySDRDevice *device, con
  * \param addr the register address
  * \return the register value
  */
-SOAPY_SDR_API unsigned SoapySDRDevice_readNamedRegister(const SoapySDRDevice *device, const char *name, const unsigned addr);
+SOAPY_SDR_API unsigned SoapySDRDevice_readRegister(const SoapySDRDevice *device, const char *name, const unsigned addr);
 
 /*!
- * Write a register on the device.
- * This can represent a register on a soft CPU, FPGA, IC;
+ * Write a memory block on the device given the interface name.
+ * This can represent a memory block on a soft CPU, FPGA, IC;
  * the interpretation is up the implementation to decide.
- * \deprecated replaced by writeRegister(name)
  * \param device a pointer to a device instance
- * \param addr the register address
- * \param value the register value
+ * \param name the name of a available memory block interface
+ * \param addr the memory block start address
+ * \param value the memory block content
+ * \param length the number of words in the block
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeRegister(SoapySDRDevice *device, const unsigned addr, const unsigned value);
+SOAPY_SDR_API int SoapySDRDevice_writeRegisters(SoapySDRDevice *device, const char *name, const unsigned addr, const unsigned *value, const size_t length);
 
 /*!
- * Read a register on the device.
- * \deprecated replaced by readRegister(name)
+ * Read a memory block on the device given the interface name.
+ * Pass the number of words to be read in via length;
+ * length will be set to the number of actual words read.
  * \param device a pointer to a device instance
- * \param addr the register address
- * \return the register value
+ * \param name the name of a available memory block interface
+ * \param addr the memory block start address
+ * \param [inout] length number of words to be read from memory block
+ * \return the memory block content
  */
-SOAPY_SDR_API unsigned SoapySDRDevice_readRegister(const SoapySDRDevice *device, const unsigned addr);
+SOAPY_SDR_API unsigned *SoapySDRDevice_readRegisters(const SoapySDRDevice *device, const char *name, const unsigned addr, size_t *length);
 
 /*******************************************************************
  * Settings API
@@ -1186,8 +1205,9 @@ SOAPY_SDR_API SoapySDRArgInfo *SoapySDRDevice_getSettingInfo(const SoapySDRDevic
  * \param device a pointer to a device instance
  * \param key the setting identifier
  * \param value the setting value
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeSetting(SoapySDRDevice *device, const char *key, const char *value);
+SOAPY_SDR_API int SoapySDRDevice_writeSetting(SoapySDRDevice *device, const char *key, const char *value);
 
 /*!
  * Read an arbitrary setting on the device.
@@ -1215,8 +1235,9 @@ SOAPY_SDR_API SoapySDRArgInfo *SoapySDRDevice_getChannelSettingInfo(const SoapyS
  * \param channel an available channel on the device
  * \param key the setting identifier
  * \param value the setting value
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeChannelSetting(SoapySDRDevice *device, const int direction, const size_t channel, const char *key, const char *value);
+SOAPY_SDR_API int SoapySDRDevice_writeChannelSetting(SoapySDRDevice *device, const int direction, const size_t channel, const char *key, const char *value);
 
 /*!
  * Read an arbitrary channel setting on the device.
@@ -1244,8 +1265,9 @@ SOAPY_SDR_API char **SoapySDRDevice_listGPIOBanks(const SoapySDRDevice *device, 
  * \param device a pointer to a device instance
  * \param bank the name of an available bank
  * \param value an integer representing GPIO bits
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeGPIO(SoapySDRDevice *device, const char *bank, const unsigned value);
+SOAPY_SDR_API int SoapySDRDevice_writeGPIO(SoapySDRDevice *device, const char *bank, const unsigned value);
 
 /*!
  * Write the value of a GPIO bank with modification mask.
@@ -1253,8 +1275,9 @@ SOAPY_SDR_API void SoapySDRDevice_writeGPIO(SoapySDRDevice *device, const char *
  * \param bank the name of an available bank
  * \param value an integer representing GPIO bits
  * \param mask a modification mask where 1 = modify
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeGPIOMasked(SoapySDRDevice *device, const char *bank, const unsigned value, const unsigned mask);
+SOAPY_SDR_API int SoapySDRDevice_writeGPIOMasked(SoapySDRDevice *device, const char *bank, const unsigned value, const unsigned mask);
 
 /*!
  * Readback the value of a GPIO bank.
@@ -1270,8 +1293,9 @@ SOAPY_SDR_API unsigned SoapySDRDevice_readGPIO(const SoapySDRDevice *device, con
  * \param device a pointer to a device instance
  * \param bank the name of an available bank
  * \param dir an integer representing data direction bits
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeGPIODir(SoapySDRDevice *device, const char *bank, const unsigned dir);
+SOAPY_SDR_API int SoapySDRDevice_writeGPIODir(SoapySDRDevice *device, const char *bank, const unsigned dir);
 
 /*!
  * Write the data direction of a GPIO bank with modification mask.
@@ -1280,8 +1304,9 @@ SOAPY_SDR_API void SoapySDRDevice_writeGPIODir(SoapySDRDevice *device, const cha
  * \param bank the name of an available bank
  * \param dir an integer representing data direction bits
  * \param mask a modification mask where 1 = modify
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeGPIODirMasked(SoapySDRDevice *device, const char *bank, const unsigned dir, const unsigned mask);
+SOAPY_SDR_API int SoapySDRDevice_writeGPIODirMasked(SoapySDRDevice *device, const char *bank, const unsigned dir, const unsigned mask);
 
 /*!
  * Read the data direction of a GPIO bank.
@@ -1304,19 +1329,22 @@ SOAPY_SDR_API unsigned SoapySDRDevice_readGPIODir(const SoapySDRDevice *device, 
  * \param addr the address of the slave
  * \param data an array of bytes write out
  * \param numBytes the number of bytes to write
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeI2C(SoapySDRDevice *device, const int addr, const char *data, const size_t numBytes);
+SOAPY_SDR_API int SoapySDRDevice_writeI2C(SoapySDRDevice *device, const int addr, const char *data, const size_t numBytes);
 
 /*!
  * Read from an available I2C slave.
  * If the device contains multiple I2C masters,
  * the address bits can encode which master.
+ * Pass the number of bytes to be read in via numBytes;
+ * numBytes will be set to the number of actual bytes read.
  * \param device a pointer to a device instance
  * \param addr the address of the slave
- * \param numBytes the number of bytes to read
+ * \param [inout] numBytes the number of bytes to read
  * \return an array of bytes read from the slave
  */
-SOAPY_SDR_API char *SoapySDRDevice_readI2C(SoapySDRDevice *device, const int addr, const size_t numBytes);
+SOAPY_SDR_API char *SoapySDRDevice_readI2C(SoapySDRDevice *device, const int addr, size_t *numBytes);
 
 /*******************************************************************
  * SPI API
@@ -1358,8 +1386,9 @@ SOAPY_SDR_API char **SoapySDRDevice_listUARTs(const SoapySDRDevice *device, size
  * \param device a pointer to a device instance
  * \param which the name of an available UART
  * \param data a null terminated array of bytes
+ * \return 0 for success or error code on failure
  */
-SOAPY_SDR_API void SoapySDRDevice_writeUART(SoapySDRDevice *device, const char *which, const char *data);
+SOAPY_SDR_API int SoapySDRDevice_writeUART(SoapySDRDevice *device, const char *which, const char *data);
 
 /*!
  * Read bytes from a UART until timeout or newline.
