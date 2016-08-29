@@ -1,6 +1,31 @@
 This this the changelog file for the SoapySDR project.
 
-Release 0.5.1 (pending)
+Release 0.6.0 (pending)
+==========================
+
+Device C API changes:
+
+- Device readI2C - make numBytes an in/out argument
+- Device read/write registers switch to named variant
+- Status return for Device C API calls with void return
+
+General additions and changes:
+
+- Added Kwargs type to/from markup string API calls
+- Added read/writeRegisters() API for bulk register IO
+
+Release 0.5.3 (pending)
+==========================
+
+- Additional try/catch blocks for C API wrapper safety
+
+Release 0.5.2 (2016-08-18)
+==========================
+
+- Fixes for Doxygen warnings and Doxyfile version upgrade
+- Additional build helpers for python development config
+
+Release 0.5.1 (2016-08-02)
 ==========================
 
 - Added SoapySDR_getLibVersion() and SOAPY_SDR_API_VERSION

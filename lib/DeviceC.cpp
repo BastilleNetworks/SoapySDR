@@ -2,38 +2,62 @@
 // Copyright (c) 2016-2016 Bastille Networks
 // SPDX-License-Identifier: BSL-1.0
 
+#include "ErrorHelpers.hpp"
 #include "TypeHelpers.hpp"
 #include <SoapySDR/Device.h>
 #include <SoapySDR/Device.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <cmath> //NAN
 
 /*******************************************************************
- * Helper macros for dealing with error messages
+ * Error message implementation
  ******************************************************************/
-#define __SOAPY_SDR_C_TRY try {
-#define __SOAPY_SDR_C_CATCH } \
-    catch (const std::exception &ex) { return SoapySDRDevice_reportError(ex.what()); } \
-    catch (...) { return SoapySDRDevice_reportError("unknown"); } \
-    return 0;
-
 #ifdef _MSC_VER
 #define __thread __declspec(thread)
 #endif
 
+static __thread int lastErrorStatus;
+
 static __thread char lastErrorMsg[1024];
 
-static int SoapySDRDevice_reportError(const char *msg)
+void SoapySDRDevice_clearError(void)
+{
+    lastErrorMsg[0] = '\0';
+    lastErrorStatus = 0;
+}
+
+int SoapySDRDevice_lastStatus(void)
+{
+    return lastErrorStatus;
+}
+
+void SoapySDRDevice_reportError(const char *msg)
 {
     strncpy(lastErrorMsg, msg, sizeof(lastErrorMsg));
     lastErrorMsg[sizeof(lastErrorMsg)-1] = '\0';
-    return -1;
+    lastErrorStatus = -1;
 }
 
 const char *SoapySDRDevice_lastError(void)
 {
     return lastErrorMsg;
+}
+
+/*******************************************************************
+ * Error POD types
+ ******************************************************************/
+
+static const bool SoapySDRBoolErr = bool(-1);
+
+static const SoapySDRRange SoapySDRRangeNAN = {NAN, NAN};
+
+static SoapySDRArgInfo SoapySDRArgInfoNull(void)
+{
+    SoapySDRArgInfo info;
+    std::memset(&info, 0, sizeof(info));
+    return info;
 }
 
 /*******************************************************************
@@ -48,17 +72,23 @@ extern "C" {
  ******************************************************************/
 char *SoapySDRDevice_getDriverKey(const SoapySDRDevice *device)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getDriverKey().c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 char *SoapySDRDevice_getHardwareKey(const SoapySDRDevice *device)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getHardwareKey().c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRKwargs SoapySDRDevice_getHardwareInfo(const SoapySDRDevice *device)
 {
+    __SOAPY_SDR_C_TRY
     return toKwargs(device->getHardwareInfo());
+    __SOAPY_SDR_C_CATCH_RET(toKwargs(SoapySDR::Kwargs()));
 }
 
 /*******************************************************************
@@ -73,22 +103,30 @@ int SoapySDRDevice_setFrontendMapping(SoapySDRDevice *device, const int directio
 
 char *SoapySDRDevice_getFrontendMapping(const SoapySDRDevice *device, const int direction)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getFrontendMapping(direction).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 size_t SoapySDRDevice_getNumChannels(const SoapySDRDevice *device, const int direction)
 {
+    __SOAPY_SDR_C_TRY
     return device->getNumChannels(direction);
+    __SOAPY_SDR_C_CATCH_RET(std::string::npos);
 }
 
 SoapySDRKwargs SoapySDRDevice_getChannelInfo(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return toKwargs(device->getChannelInfo(direction, channel));
+    __SOAPY_SDR_C_CATCH_RET(toKwargs(SoapySDR::Kwargs()));
 }
 
 bool SoapySDRDevice_getFullDuplex(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getFullDuplex(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 /*******************************************************************
@@ -96,17 +134,25 @@ bool SoapySDRDevice_getFullDuplex(const SoapySDRDevice *device, const int direct
  ******************************************************************/
 char **SoapySDRDevice_getStreamFormats(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->getStreamFormats(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 char *SoapySDRDevice_getNativeStreamFormat(const SoapySDRDevice *device, const int direction, const size_t channel, double *fullScale)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getNativeStreamFormat(direction, channel, *fullScale).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRArgInfo *SoapySDRDevice_getStreamArgsInfo(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toArgInfoList(device->getStreamArgsInfo(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 int SoapySDRDevice_setupStream(SoapySDRDevice *device, SoapySDRStream **stream, const int direction, const char *format, const size_t *channels, const size_t numChans, const SoapySDRKwargs *args)
@@ -114,16 +160,22 @@ int SoapySDRDevice_setupStream(SoapySDRDevice *device, SoapySDRStream **stream, 
     __SOAPY_SDR_C_TRY
     *stream = reinterpret_cast<SoapySDRStream *>(device->setupStream(direction, format, std::vector<size_t>(channels, channels+numChans), toKwargs(args)));
     __SOAPY_SDR_C_CATCH
+    //TODO this would be a better design to return the stream
+    //__SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
-void SoapySDRDevice_closeStream(SoapySDRDevice *device, SoapySDRStream *stream)
+int SoapySDRDevice_closeStream(SoapySDRDevice *device, SoapySDRStream *stream)
 {
-    return device->closeStream(reinterpret_cast<SoapySDR::Stream *>(stream));
+    __SOAPY_SDR_C_TRY
+    device->closeStream(reinterpret_cast<SoapySDR::Stream *>(stream));
+    __SOAPY_SDR_C_CATCH
 }
 
 size_t SoapySDRDevice_getStreamMTU(const SoapySDRDevice *device, SoapySDRStream *stream)
 {
+    __SOAPY_SDR_C_TRY
     return device->getStreamMTU(reinterpret_cast<SoapySDR::Stream *>(stream));
+    __SOAPY_SDR_C_CATCH_RET(std::string::npos);
 }
 
 int SoapySDRDevice_activateStream(SoapySDRDevice *device,
@@ -132,7 +184,9 @@ int SoapySDRDevice_activateStream(SoapySDRDevice *device,
     const long long timeNs,
     const size_t numElems)
 {
+    __SOAPY_SDR_C_TRY
     return device->activateStream(reinterpret_cast<SoapySDR::Stream *>(stream), flags, timeNs, numElems);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
 
 int SoapySDRDevice_deactivateStream(SoapySDRDevice *device,
@@ -140,36 +194,47 @@ int SoapySDRDevice_deactivateStream(SoapySDRDevice *device,
     const int flags,
     const long long timeNs)
 {
+    __SOAPY_SDR_C_TRY
     return device->deactivateStream(reinterpret_cast<SoapySDR::Stream *>(stream), flags, timeNs);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
 
 int SoapySDRDevice_readStream(SoapySDRDevice *device, SoapySDRStream *stream, void * const *buffs, const size_t numElems, int *flags, long long *timeNs, const long timeoutUs)
 {
+    __SOAPY_SDR_C_TRY
     return device->readStream(reinterpret_cast<SoapySDR::Stream *>(stream), buffs, numElems, *flags, *timeNs, timeoutUs);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
 
 int SoapySDRDevice_writeStream(SoapySDRDevice *device, SoapySDRStream *stream, const void * const *buffs, const size_t numElems, int *flags, const long long timeNs, const long timeoutUs)
 {
+    __SOAPY_SDR_C_TRY
     return device->writeStream(reinterpret_cast<SoapySDR::Stream *>(stream), buffs, numElems, *flags, timeNs, timeoutUs);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
 
 int SoapySDRDevice_readStreamStatus(SoapySDRDevice *device, SoapySDRStream *stream, size_t *chanMask, int *flags, long long *timeNs, const long timeoutUs)
 {
+    __SOAPY_SDR_C_TRY
     return device->readStreamStatus(reinterpret_cast<SoapySDR::Stream *>(stream), *chanMask, *flags, *timeNs, timeoutUs);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
-
 
 /*******************************************************************
  * Direct buffer access API
  ******************************************************************/
 size_t SoapySDRDevice_getNumDirectAccessBuffers(SoapySDRDevice *device, SoapySDRStream *stream)
 {
+    __SOAPY_SDR_C_TRY
     return device->getNumDirectAccessBuffers(reinterpret_cast<SoapySDR::Stream *>(stream));
+    __SOAPY_SDR_C_CATCH_RET(std::string::npos);
 }
 
 int SoapySDRDevice_getDirectAccessBufferAddrs(SoapySDRDevice *device, SoapySDRStream *stream, const size_t handle, void **buffs)
 {
+    __SOAPY_SDR_C_TRY
     return device->getDirectAccessBufferAddrs(reinterpret_cast<SoapySDR::Stream *>(stream), handle, buffs);
+    __SOAPY_SDR_C_CATCH
 }
 
 int SoapySDRDevice_acquireReadBuffer(SoapySDRDevice *device,
@@ -180,14 +245,18 @@ int SoapySDRDevice_acquireReadBuffer(SoapySDRDevice *device,
     long long *timeNs,
     const long timeoutUs)
 {
+    __SOAPY_SDR_C_TRY
     return device->acquireReadBuffer(reinterpret_cast<SoapySDR::Stream *>(stream), *handle, buffs, *flags, *timeNs, timeoutUs);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
 
 void SoapySDRDevice_releaseReadBuffer(SoapySDRDevice *device,
     SoapySDRStream *stream,
     const size_t handle)
 {
+    __SOAPY_SDR_C_TRY
     return device->releaseReadBuffer(reinterpret_cast<SoapySDR::Stream *>(stream), handle);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRVoidRet);
 }
 
 int SoapySDRDevice_acquireWriteBuffer(SoapySDRDevice *device,
@@ -196,7 +265,9 @@ int SoapySDRDevice_acquireWriteBuffer(SoapySDRDevice *device,
     void **buffs,
     const long timeoutUs)
 {
+    __SOAPY_SDR_C_TRY
     return device->acquireWriteBuffer(reinterpret_cast<SoapySDR::Stream *>(stream), *handle, buffs, timeoutUs);
+    __SOAPY_SDR_C_CATCH_RET(SOAPY_SDR_STREAM_ERROR);
 }
 
 void SoapySDRDevice_releaseWriteBuffer(SoapySDRDevice *device,
@@ -206,7 +277,9 @@ void SoapySDRDevice_releaseWriteBuffer(SoapySDRDevice *device,
     int *flags,
     const long long timeNs)
 {
+    __SOAPY_SDR_C_TRY
     return device->releaseWriteBuffer(reinterpret_cast<SoapySDR::Stream *>(stream), handle, numElems, *flags, timeNs);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRVoidRet);
 }
 
 /*******************************************************************
@@ -214,7 +287,10 @@ void SoapySDRDevice_releaseWriteBuffer(SoapySDRDevice *device,
  ******************************************************************/
 char **SoapySDRDevice_listAntennas(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listAntennas(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 int SoapySDRDevice_setAntenna(SoapySDRDevice *device, const int direction, const size_t channel, const char *name)
@@ -226,7 +302,9 @@ int SoapySDRDevice_setAntenna(SoapySDRDevice *device, const int direction, const
 
 char *SoapySDRDevice_getAntenna(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getAntenna(direction, channel).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -234,7 +312,9 @@ char *SoapySDRDevice_getAntenna(const SoapySDRDevice *device, const int directio
  ******************************************************************/
 bool SoapySDRDevice_hasDCOffsetMode(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->hasDCOffsetMode(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 int SoapySDRDevice_setDCOffsetMode(SoapySDRDevice *device, const int direction, const size_t channel, const bool automatic)
@@ -246,12 +326,16 @@ int SoapySDRDevice_setDCOffsetMode(SoapySDRDevice *device, const int direction, 
 
 bool SoapySDRDevice_getDCOffsetMode(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getDCOffsetMode(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 bool SoapySDRDevice_hasDCOffset(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->hasDCOffset(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 int SoapySDRDevice_setDCOffset(SoapySDRDevice *device, const int direction, const size_t channel, const double offsetI, const double offsetQ)
@@ -261,16 +345,20 @@ int SoapySDRDevice_setDCOffset(SoapySDRDevice *device, const int direction, cons
     __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_getDCOffset(const SoapySDRDevice *device, const int direction, const size_t channel, double *offsetI, double *offsetQ)
+int SoapySDRDevice_getDCOffset(const SoapySDRDevice *device, const int direction, const size_t channel, double *offsetI, double *offsetQ)
 {
+    __SOAPY_SDR_C_TRY
     std::complex<double> ret = device->getDCOffset(direction, channel);
     *offsetI = ret.real();
     *offsetQ = ret.imag();
+    __SOAPY_SDR_C_CATCH
 }
 
 bool SoapySDRDevice_hasIQBalance(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->hasIQBalance(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 int SoapySDRDevice_setIQBalance(SoapySDRDevice *device, const int direction, const size_t channel, const double balanceI, const double balanceQ)
@@ -280,11 +368,13 @@ int SoapySDRDevice_setIQBalance(SoapySDRDevice *device, const int direction, con
     __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int direction, const size_t channel, double *balanceI, double *balanceQ)
+int SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int direction, const size_t channel, double *balanceI, double *balanceQ)
 {
+    __SOAPY_SDR_C_TRY
     std::complex<double> ret = device->getIQBalance(direction, channel);
     *balanceI = ret.real();
     *balanceQ = ret.imag();
+    __SOAPY_SDR_C_CATCH
 }
 
 /*******************************************************************
@@ -292,12 +382,17 @@ void SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int directi
  ******************************************************************/
 char **SoapySDRDevice_listGains(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listGains(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 bool SoapySDRDevice_hasGainMode(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->hasGainMode(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 int SoapySDRDevice_setGainMode(SoapySDRDevice *device, const int direction, const size_t channel, const bool automatic)
@@ -309,7 +404,9 @@ int SoapySDRDevice_setGainMode(SoapySDRDevice *device, const int direction, cons
 
 bool SoapySDRDevice_getGainMode(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getGainMode(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 int SoapySDRDevice_setGain(SoapySDRDevice *device, const int direction, const size_t channel, const double value)
@@ -328,22 +425,30 @@ int SoapySDRDevice_setGainElement(SoapySDRDevice *device, const int direction, c
 
 double SoapySDRDevice_getGain(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getGain(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 double SoapySDRDevice_getGainElement(const SoapySDRDevice *device, const int direction, const size_t channel, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return device->getGain(direction, channel, name);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 SoapySDRRange SoapySDRDevice_getGainRange(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return toRange(device->getGainRange(direction, channel));
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRRangeNAN);
 }
 
 SoapySDRRange SoapySDRDevice_getGainElementRange(const SoapySDRDevice *device, const int direction, const size_t channel, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return toRange(device->getGainRange(direction, channel, name));
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRRangeNAN);
 }
 
 /*******************************************************************
@@ -365,32 +470,48 @@ int SoapySDRDevice_setFrequencyComponent(SoapySDRDevice *device, const int direc
 
 double SoapySDRDevice_getFrequency(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getFrequency(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 double SoapySDRDevice_getFrequencyComponent(const SoapySDRDevice *device, const int direction, const size_t channel, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return device->getFrequency(direction, channel, name);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 char **SoapySDRDevice_listFrequencies(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listFrequencies(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRRange *SoapySDRDevice_getFrequencyRange(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toRangeList(device->getFrequencyRange(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRRange *SoapySDRDevice_getFrequencyRangeComponent(const SoapySDRDevice *device, const int direction, const size_t channel, const char *name, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toRangeList(device->getFrequencyRange(direction, channel, name), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRArgInfo *SoapySDRDevice_getFrequencyArgsInfo(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toArgInfoList(device->getFrequencyArgsInfo(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -405,12 +526,17 @@ int SoapySDRDevice_setSampleRate(SoapySDRDevice *device, const int direction, co
 
 double SoapySDRDevice_getSampleRate(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getSampleRate(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 double *SoapySDRDevice_listSampleRates(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toNumericList(device->listSampleRates(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -425,17 +551,25 @@ int SoapySDRDevice_setBandwidth(SoapySDRDevice *device, const int direction, con
 
 double SoapySDRDevice_getBandwidth(const SoapySDRDevice *device, const int direction, const size_t channel)
 {
+    __SOAPY_SDR_C_TRY
     return device->getBandwidth(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 double *SoapySDRDevice_listBandwidths(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toNumericList(device->listBandwidths(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRRange *SoapySDRDevice_getBandwidthRange(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toRangeList(device->getBandwidthRange(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -450,17 +584,25 @@ int SoapySDRDevice_setMasterClockRate(SoapySDRDevice *device, const double rate)
 
 double SoapySDRDevice_getMasterClockRate(const SoapySDRDevice *device)
 {
+    __SOAPY_SDR_C_TRY
     return device->getMasterClockRate();
+    __SOAPY_SDR_C_CATCH_RET(NAN);
 }
 
 SoapySDRRange *SoapySDRDevice_getMasterClockRates(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toRangeList(device->getMasterClockRates(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 char **SoapySDRDevice_listClockSources(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listClockSources(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 int SoapySDRDevice_setClockSource(SoapySDRDevice *device, const char *source)
@@ -472,7 +614,9 @@ int SoapySDRDevice_setClockSource(SoapySDRDevice *device, const char *source)
 
 char *SoapySDRDevice_getClockSource(const SoapySDRDevice *device)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getClockSource().c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -481,7 +625,10 @@ char *SoapySDRDevice_getClockSource(const SoapySDRDevice *device)
 
 char **SoapySDRDevice_listTimeSources(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listTimeSources(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 int SoapySDRDevice_setTimeSource(SoapySDRDevice *device, const char *source)
@@ -493,27 +640,37 @@ int SoapySDRDevice_setTimeSource(SoapySDRDevice *device, const char *source)
 
 char *SoapySDRDevice_getTimeSource(const SoapySDRDevice *device)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->getTimeSource().c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 bool SoapySDRDevice_hasHardwareTime(const SoapySDRDevice *device, const char *what)
 {
+    __SOAPY_SDR_C_TRY
     return device->hasHardwareTime(what);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
 }
 
 long long SoapySDRDevice_getHardwareTime(const SoapySDRDevice *device, const char *what)
 {
+    __SOAPY_SDR_C_TRY
     return device->getHardwareTime(what);
+    __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_setHardwareTime(SoapySDRDevice *device, const long long timeNs, const char *what)
+int SoapySDRDevice_setHardwareTime(SoapySDRDevice *device, const long long timeNs, const char *what)
 {
+    __SOAPY_SDR_C_TRY
     device->setHardwareTime(timeNs, what);
+    __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_setCommandTime(SoapySDRDevice *device, const long long timeNs, const char *what)
+int SoapySDRDevice_setCommandTime(SoapySDRDevice *device, const long long timeNs, const char *what)
 {
+    __SOAPY_SDR_C_TRY
     device->setCommandTime(timeNs, what);
+    __SOAPY_SDR_C_CATCH
 }
 
 /*******************************************************************
@@ -521,32 +678,46 @@ void SoapySDRDevice_setCommandTime(SoapySDRDevice *device, const long long timeN
  ******************************************************************/
 char **SoapySDRDevice_listSensors(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listSensors(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRArgInfo SoapySDRDevice_getSensorInfo(const SoapySDRDevice *device, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return toArgInfo(device->getSensorInfo(name));
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRArgInfoNull());
 }
 
 char *SoapySDRDevice_readSensor(const SoapySDRDevice *device, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->readSensor(name).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 char **SoapySDRDevice_listChannelSensors(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listSensors(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRArgInfo SoapySDRDevice_getChannelSensorInfo(const SoapySDRDevice *device, const int direction, const size_t channel, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return toArgInfo(device->getSensorInfo(direction, channel, name));
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRArgInfoNull());
 }
 
 char *SoapySDRDevice_readChannelSensor(const SoapySDRDevice *device, const int direction, const size_t channel, const char *name)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->readSensor(direction, channel, name).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -554,27 +725,41 @@ char *SoapySDRDevice_readChannelSensor(const SoapySDRDevice *device, const int d
  ******************************************************************/
 char **SoapySDRDevice_listRegisterInterfaces(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listRegisterInterfaces(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
-void SoapySDRDevice_writeNamedRegister(SoapySDRDevice *device, const char *name, const unsigned addr, const unsigned value)
+int SoapySDRDevice_writeRegister(SoapySDRDevice *device, const char *name, const unsigned addr, const unsigned value)
 {
-    return device->writeRegister(name, addr, value);
+    __SOAPY_SDR_C_TRY
+    device->writeRegister(name, addr, value);
+    __SOAPY_SDR_C_CATCH
 }
 
-unsigned SoapySDRDevice_readNamedRegister(const SoapySDRDevice *device, const char *name, const unsigned addr)
+unsigned SoapySDRDevice_readRegister(const SoapySDRDevice *device, const char *name, const unsigned addr)
 {
+    __SOAPY_SDR_C_TRY
     return device->readRegister(name, addr);
+    __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_writeRegister(SoapySDRDevice *device, const unsigned addr, const unsigned value)
+int SoapySDRDevice_writeRegisters(SoapySDRDevice *device, const char *name, const unsigned addr, const unsigned *value, const size_t length)
 {
-    return device->writeRegister(addr, value);
+    __SOAPY_SDR_C_TRY
+    device->writeRegisters(name, addr, toNumericVector(value, length));
+    __SOAPY_SDR_C_CATCH
 }
 
-unsigned SoapySDRDevice_readRegister(const SoapySDRDevice *device, const unsigned addr)
+unsigned *SoapySDRDevice_readRegisters(const SoapySDRDevice *device, const char *name, const unsigned addr, size_t *length)
 {
-    return device->readRegister(addr);
+    const size_t inputLen = *length;
+    *length = 0; //clear in case of error
+
+    __SOAPY_SDR_C_TRY
+    return toNumericList(device->readRegisters(name, addr, inputLen), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -582,32 +767,46 @@ unsigned SoapySDRDevice_readRegister(const SoapySDRDevice *device, const unsigne
  ******************************************************************/
 SoapySDRArgInfo *SoapySDRDevice_getSettingInfo(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toArgInfoList(device->getSettingInfo(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
-void SoapySDRDevice_writeSetting(SoapySDRDevice *device, const char *key, const char *value)
+int SoapySDRDevice_writeSetting(SoapySDRDevice *device, const char *key, const char *value)
 {
-    return device->writeSetting(key, value);
+    __SOAPY_SDR_C_TRY
+    device->writeSetting(key, value);
+    __SOAPY_SDR_C_CATCH
 }
 
 char *SoapySDRDevice_readSetting(const SoapySDRDevice *device, const char *key)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->readSetting(key).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 SoapySDRArgInfo *SoapySDRDevice_getChannelSettingInfo(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toArgInfoList(device->getSettingInfo(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
-void SoapySDRDevice_writeChannelSetting(SoapySDRDevice *device, const int direction, const size_t channel, const char *key, const char *value)
+int SoapySDRDevice_writeChannelSetting(SoapySDRDevice *device, const int direction, const size_t channel, const char *key, const char *value)
 {
-    return device->writeSetting(direction, channel, key, value);
+    __SOAPY_SDR_C_TRY
+    device->writeSetting(direction, channel, key, value);
+    __SOAPY_SDR_C_CATCH
 }
 
 char *SoapySDRDevice_readChannelSetting(const SoapySDRDevice *device, const int direction, const size_t channel, const char *key)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->readSetting(direction, channel, key).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -615,53 +814,76 @@ char *SoapySDRDevice_readChannelSetting(const SoapySDRDevice *device, const int 
  ******************************************************************/
 char **SoapySDRDevice_listGPIOBanks(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listGPIOBanks(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
-void SoapySDRDevice_writeGPIO(SoapySDRDevice *device, const char *bank, const unsigned value)
+int SoapySDRDevice_writeGPIO(SoapySDRDevice *device, const char *bank, const unsigned value)
 {
-    return device->writeGPIO(bank, value);
+    __SOAPY_SDR_C_TRY
+    device->writeGPIO(bank, value);
+    __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_writeGPIOMasked(SoapySDRDevice *device, const char *bank, const unsigned value, const unsigned mask)
+int SoapySDRDevice_writeGPIOMasked(SoapySDRDevice *device, const char *bank, const unsigned value, const unsigned mask)
 {
-    return device->writeGPIO(bank, value, mask);
+    __SOAPY_SDR_C_TRY
+    device->writeGPIO(bank, value, mask);
+    __SOAPY_SDR_C_CATCH
 }
 
 unsigned SoapySDRDevice_readGPIO(const SoapySDRDevice *device, const char *bank)
 {
+    __SOAPY_SDR_C_TRY
     return device->readGPIO(bank);
+    __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_writeGPIODir(SoapySDRDevice *device, const char *bank, const unsigned dir)
+int SoapySDRDevice_writeGPIODir(SoapySDRDevice *device, const char *bank, const unsigned dir)
 {
-    return device->writeGPIODir(bank, dir);
+    __SOAPY_SDR_C_TRY
+    device->writeGPIODir(bank, dir);
+    __SOAPY_SDR_C_CATCH
 }
 
-void SoapySDRDevice_writeGPIODirMasked(SoapySDRDevice *device, const char *bank, const unsigned dir, const unsigned mask)
+int SoapySDRDevice_writeGPIODirMasked(SoapySDRDevice *device, const char *bank, const unsigned dir, const unsigned mask)
 {
-    return device->writeGPIODir(bank, dir, mask);
+    __SOAPY_SDR_C_TRY
+    device->writeGPIODir(bank, dir, mask);
+    __SOAPY_SDR_C_CATCH
 }
 
 unsigned SoapySDRDevice_readGPIODir(const SoapySDRDevice *device, const char *bank)
 {
+    __SOAPY_SDR_C_TRY
     return device->readGPIODir(bank);
+    __SOAPY_SDR_C_CATCH
 }
 
 /*******************************************************************
  * I2C API
  ******************************************************************/
-void SoapySDRDevice_writeI2C(SoapySDRDevice *device, const int addr, const char *data, const size_t numBytes)
+int SoapySDRDevice_writeI2C(SoapySDRDevice *device, const int addr, const char *data, const size_t numBytes)
 {
-    return device->writeI2C(addr, std::string(data, numBytes));
+    __SOAPY_SDR_C_TRY
+    device->writeI2C(addr, std::string(data, numBytes));
+    __SOAPY_SDR_C_CATCH
 }
 
-char *SoapySDRDevice_readI2C(SoapySDRDevice *device, const int addr, const size_t numBytes)
+char *SoapySDRDevice_readI2C(SoapySDRDevice *device, const int addr, size_t *numBytes)
 {
-    const std::string bytes = device->readI2C(addr, numBytes).c_str();
+    const size_t inputNumBytes = *numBytes;
+    *numBytes = 0; //clear in case of error
+
+    __SOAPY_SDR_C_TRY
+    const std::string bytes = device->readI2C(addr, inputNumBytes).c_str();
     char *buff = (char *)std::malloc(bytes.size());
     std::copy(bytes.begin(), bytes.end(), buff);
+    *numBytes = bytes.size();
     return buff;
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 /*******************************************************************
@@ -669,7 +891,9 @@ char *SoapySDRDevice_readI2C(SoapySDRDevice *device, const int addr, const size_
  ******************************************************************/
 unsigned SoapySDRDevice_transactSPI(SoapySDRDevice *device, const int addr, const unsigned data, const size_t numBits)
 {
+    __SOAPY_SDR_C_TRY
     return device->transactSPI(addr, data, numBits);
+    __SOAPY_SDR_C_CATCH
 }
 
 /*******************************************************************
@@ -677,17 +901,24 @@ unsigned SoapySDRDevice_transactSPI(SoapySDRDevice *device, const int addr, cons
  ******************************************************************/
 char **SoapySDRDevice_listUARTs(const SoapySDRDevice *device, size_t *length)
 {
+    *length = 0;
+    __SOAPY_SDR_C_TRY
     return toStrArray(device->listUARTs(), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
-void SoapySDRDevice_writeUART(SoapySDRDevice *device, const char *which, const char *data)
+int SoapySDRDevice_writeUART(SoapySDRDevice *device, const char *which, const char *data)
 {
-    return device->writeUART(which, data);
+    __SOAPY_SDR_C_TRY
+    device->writeUART(which, data);
+    __SOAPY_SDR_C_CATCH
 }
 
 char *SoapySDRDevice_readUART(const SoapySDRDevice *device, const char *which, const long timeoutUs)
 {
+    __SOAPY_SDR_C_TRY
     return strdup(device->readUART(which, timeoutUs).c_str());
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
 } //extern "C"

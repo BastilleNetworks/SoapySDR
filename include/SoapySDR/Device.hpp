@@ -124,7 +124,7 @@ public:
     /*!
      * Get the mapping configuration string.
      * \param direction the channel direction RX or TX
-     * \param the vendor-specific mapping string
+     * \return the vendor-specific mapping string
      */
     virtual std::string getFrontendMapping(const int direction) const;
 
@@ -445,8 +445,6 @@ public:
      * \param stream the opaque pointer to a stream handle
      * \param handle an index value used in the release() call
      * \param buffs an array of void* buffers num chans in size
-     * \param flags optional input flags and output flags
-     * \param timeNs the buffer's timestamp in nanoseconds
      * \param timeoutUs the timeout in microseconds
      * \return the number of available elements per buffer or error
      */
@@ -624,7 +622,6 @@ public:
      * The gain will be distributed automatically across available element.
      * \param direction the channel direction RX or TX
      * \param channel an available channel on the device
-     * \param name the name of an amplification element
      * \param value the new amplification value in dB
      */
     virtual void setGain(const int direction, const size_t channel, const double value);
@@ -1039,6 +1036,25 @@ public:
      * \return the register value
      */
     virtual unsigned readRegister(const unsigned addr) const;
+
+    /*!
+     * Write a memory block on the device given the interface name.
+     * This can represent a memory block on a soft CPU, FPGA, IC;
+     * the interpretation is up the implementation to decide.
+     * \param name the name of a available memory block interface
+     * \param addr the memory block start address
+     * \param value the memory block content
+     */
+    virtual void writeRegisters(const std::string &name, const unsigned addr, const std::vector<unsigned> &value);
+
+    /*!
+     * Read a memory block on the device given the interface name.
+     * \param name the name of a available memory block interface
+     * \param addr the memory block start address
+     * \param length number of words to be read from memory block
+     * \return the memory block content
+     */
+    virtual std::vector<unsigned> readRegisters(const std::string &name, const unsigned addr, const size_t length) const;
 
     /*******************************************************************
      * Settings API
