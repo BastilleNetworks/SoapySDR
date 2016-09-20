@@ -11,12 +11,15 @@ Device C API changes:
 
 General additions and changes:
 
+- Added listSearchPaths() API and SoapySDRUtil print
 - Added Kwargs type to/from markup string API calls
 - Added read/writeRegisters() API for bulk register IO
 
 Release 0.5.4 (pending)
 ==========================
 
+- Dynamic root environment variable to support snappy packages
+- Windows: disable graphical error pop-ups when DLLs are not found
 - Debian: replaced recommends with soapysdr-modules-all metapackage
 
 Release 0.5.3 (2016-09-01)

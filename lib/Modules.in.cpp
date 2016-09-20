@@ -39,7 +39,7 @@ std::string getEnvImpl(const char *name)
 
 std::string SoapySDR::getRootPath(void)
 {
-    const std::string rootPathEnv = getEnvImpl("SOAPY_SDR_ROOT");
+    const std::string rootPathEnv = getEnvImpl("@SOAPY_SDR_ROOT_ENV@");
     if (not rootPathEnv.empty()) return rootPathEnv;
 
     // Get the path to the current dynamic linked library.
@@ -114,7 +114,7 @@ static std::vector<std::string> searchModulePath(const std::string &path)
     return modulePaths;
 }
 
-std::vector<std::string> SoapySDR::listModules(void)
+std::vector<std::string> SoapySDR::listSearchPaths(void)
 {
     //the default search path
     std::vector<std::string> searchPaths;
@@ -146,11 +146,16 @@ std::vector<std::string> SoapySDR::listModules(void)
         searchPaths.push_back(pluginPath);
     }
 
+    return searchPaths;
+}
+
+std::vector<std::string> SoapySDR::listModules(void)
+{
     //traverse the search paths
     std::vector<std::string> modules;
-    for (size_t i = 0; i < searchPaths.size(); i++)
+    for (const auto &searchPath : SoapySDR::listSearchPaths())
     {
-        const std::vector<std::string> subModules = SoapySDR::listModules(searchPaths.at(i));
+        const std::vector<std::string> subModules = SoapySDR::listModules(searchPath);
         modules.insert(modules.end(), subModules.begin(), subModules.end());
     }
     return modules;
@@ -216,7 +221,13 @@ std::string SoapySDR::loadModule(const std::string &path)
 
     //load the module
 #ifdef _MSC_VER
+
+    //SetThreadErrorMode() - disable error pop-ups when DLLs are not found
+    DWORD oldMode;
+    SetThreadErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX, &oldMode);
     HMODULE handle = LoadLibrary(path.c_str());
+    SetThreadErrorMode(oldMode, nullptr);
+
     getModuleLoading().clear();
     if (handle == NULL) return "LoadLibrary() failed: " + GetLastErrorMessage();
 #else
