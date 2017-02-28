@@ -11,12 +11,19 @@ Device C API changes:
 
 General additions and changes:
 
+- Added optional step size to the range type
 - Added rate testing to SoapySDRUtil application
 - Added listSearchPaths() API and SoapySDRUtil print
 - Added Kwargs type to/from markup string API calls
 - Added read/writeRegisters() API for bulk register IO
 
-Release 0.5.4 (pending)
+Release 0.5.5 (pending)
+==========================
+
+- Fixed missing INFO log level for SOAPY_SDR_LOG_LEVEL
+- Fix for cache overwrite of PYTHON_INSTALL_DIR variable
+
+Release 0.5.4 (2016-11-29)
 ==========================
 
 - Added man page for SoapySDRUtil executable
