@@ -8,7 +8,7 @@
 /// The caller must free non-const array results.
 ///
 /// \copyright
-/// Copyright (c) 2014-2016 Josh Blum
+/// Copyright (c) 2014-2017 Josh Blum
 /// Copyright (c) 2016-2016 Bastille Networks
 /// SPDX-License-Identifier: BSL-1.0
 ///
@@ -668,6 +668,34 @@ SOAPY_SDR_API int SoapySDRDevice_setIQBalance(SoapySDRDevice *device, const int 
  */
 SOAPY_SDR_API int SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int direction, const size_t channel, double *balanceI, double *balanceQ);
 
+/*!
+ * Does the device support frontend frequency correction?
+ * \param device a pointer to a device instance
+ * \param direction the channel direction RX or TX
+ * \param channel an available channel on the device
+ * \return true if frequency corrections are supported
+ */
+SOAPY_SDR_API bool SoapySDRDevice_hasFrequencyCorrection(const SoapySDRDevice *device, const int direction, const size_t channel);
+
+/*!
+ * Fine tune the frontend frequency correction.
+ * \param device a pointer to a device instance
+ * \param direction the channel direction RX or TX
+ * \param channel an available channel on the device
+ * \param value the correction in PPM
+ * \return an error code or 0 for success
+ */
+SOAPY_SDR_API int SoapySDRDevice_setFrequencyCorrection(SoapySDRDevice *device, const int direction, const size_t channel, const double value);
+
+/*!
+ * Get the frontend frequency correction value.
+ * \param device a pointer to a device instance
+ * \param direction the channel direction RX or TX
+ * \param channel an available channel on the device
+ * \return the correction value in PPM
+ */
+SOAPY_SDR_API double SoapySDRDevice_getFrequencyCorrection(const SoapySDRDevice *device, const int direction, const size_t channel);
+
 /*******************************************************************
  * Gain API
  ******************************************************************/
@@ -914,6 +942,7 @@ SOAPY_SDR_API double SoapySDRDevice_getSampleRate(const SoapySDRDevice *device, 
 
 /*!
  * Get the range of possible baseband sample rates.
+ * \deprecated replaced by getSampleRateRange()
  * \param device a pointer to a device instance
  * \param direction the channel direction RX or TX
  * \param channel an available channel on the device
@@ -921,6 +950,16 @@ SOAPY_SDR_API double SoapySDRDevice_getSampleRate(const SoapySDRDevice *device, 
  * \return a list of possible rates in samples per second
  */
 SOAPY_SDR_API double *SoapySDRDevice_listSampleRates(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length);
+
+/*!
+ * Get the range of possible baseband sample rates.
+ * \param device a pointer to a device instance
+ * \param direction the channel direction RX or TX
+ * \param channel an available channel on the device
+ * \param [out] length the number of sample rates
+ * \return a list of sample rate ranges in samples per second
+ */
+SOAPY_SDR_API SoapySDRRange *SoapySDRDevice_getSampleRateRange(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length);
 
 /*******************************************************************
  * Bandwidth API

@@ -377,6 +377,27 @@ int SoapySDRDevice_getIQBalance(const SoapySDRDevice *device, const int directio
     __SOAPY_SDR_C_CATCH
 }
 
+bool SoapySDRDevice_hasFrequencyCorrection(const SoapySDRDevice *device, const int direction, const size_t channel)
+{
+    __SOAPY_SDR_C_TRY
+    return device->hasFrequencyCorrection(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(SoapySDRBoolErr);
+}
+
+int SoapySDRDevice_setFrequencyCorrection(SoapySDRDevice *device, const int direction, const size_t channel, const double value)
+{
+    __SOAPY_SDR_C_TRY
+    device->setFrequencyCorrection(direction, channel, value);
+    __SOAPY_SDR_C_CATCH
+}
+
+double SoapySDRDevice_getFrequencyCorrection(const SoapySDRDevice *device, const int direction, const size_t channel)
+{
+    __SOAPY_SDR_C_TRY
+    return device->getFrequencyCorrection(direction, channel);
+    __SOAPY_SDR_C_CATCH_RET(NAN);
+}
+
 /*******************************************************************
  * Gain API
  ******************************************************************/
@@ -536,6 +557,14 @@ double *SoapySDRDevice_listSampleRates(const SoapySDRDevice *device, const int d
     *length = 0;
     __SOAPY_SDR_C_TRY
     return toNumericList(device->listSampleRates(direction, channel), length);
+    __SOAPY_SDR_C_CATCH_RET(nullptr);
+}
+
+SoapySDRRange *SoapySDRDevice_getSampleRateRange(const SoapySDRDevice *device, const int direction, const size_t channel, size_t *length)
+{
+    *length = 0;
+    __SOAPY_SDR_C_TRY
+    return toRangeList(device->getSampleRateRange(direction, channel), length);
     __SOAPY_SDR_C_CATCH_RET(nullptr);
 }
 
