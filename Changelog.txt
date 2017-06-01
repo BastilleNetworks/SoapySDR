@@ -1,6 +1,6 @@
 This this the changelog file for the SoapySDR project.
 
-Release 0.6.0 (pending)
+Release 0.6.0 (2017-04-29)
 ==========================
 
 Device C API changes:
@@ -20,9 +20,10 @@ General additions and changes:
 - Added Kwargs type to/from markup string API calls
 - Added read/writeRegisters() API for bulk register IO
 
-Release 0.5.5 (pending)
+Release 0.5.5 (2017-04-28)
 ==========================
 
+- Added logger API and constants to python SWIG bindings
 - Added missing time utils to the swig python support
 - Fixed missing INFO log level for SOAPY_SDR_LOG_LEVEL
 - Fix for cache overwrite of PYTHON_INSTALL_DIR variable
