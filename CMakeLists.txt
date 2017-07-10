@@ -10,10 +10,15 @@ enable_testing()
 # gather version information
 # packagers may specify -DSOAPY_SDR_EXTVER="foo" to replace the git hash
 ########################################################################
-set(SOAPY_SDR_LIBVER "0.6.0")
+file(READ "${PROJECT_SOURCE_DIR}/Changelog.txt" changelog_txt)
+string(REGEX MATCH "Release ([0-9]+\\.[0-9]+\\.[0-9]+) \\(" CHANGELOG_MATCH "${changelog_txt}")
+if(NOT CHANGELOG_MATCH)
+    message(FATAL_ERROR "Failed to extract version number from Changelog.txt")
+endif(NOT CHANGELOG_MATCH)
+set(SOAPY_SDR_LIBVER "${CMAKE_MATCH_1}")
 
 if (NOT SOAPY_SDR_EXTVER)
-    include(${PROJECT_SOURCE_DIR}/cmake/GetGitRevisionDescription.cmake)
+    include(${PROJECT_SOURCE_DIR}/cmake/Modules/GetGitRevisionDescription.cmake)
     get_git_head_revision(GITREFSPEC GITHASH)
     if (GITHASH)
         string(SUBSTRING "${GITHASH}" 0 8 GITHASH)
@@ -78,7 +83,7 @@ endif()
 ########################################################################
 # Allows in-tree module util
 ########################################################################
-set(SoapySDR_DIR ${PROJECT_SOURCE_DIR}/cmake)
+set(SoapySDR_DIR ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(SOAPY_SDR_IN_TREE_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 find_package(SoapySDR NO_MODULE REQUIRED)
 include_directories(${SoapySDR_INCLUDE_DIRS}) #local include precedence
@@ -87,12 +92,12 @@ include_directories(${SoapySDR_INCLUDE_DIRS}) #local include precedence
 # Install cmake helper modules
 ########################################################################
 configure_file(
-    ${PROJECT_SOURCE_DIR}/cmake/SoapySDRConfigVersion.in.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/SoapySDRConfigVersion.in.cmake
     ${PROJECT_BINARY_DIR}/SoapySDRConfigVersion.cmake
 @ONLY)
 set(cmake_files
-    ${PROJECT_SOURCE_DIR}/cmake/SoapySDRConfig.cmake
-    ${PROJECT_SOURCE_DIR}/cmake/SoapySDRUtil.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/SoapySDRConfig.cmake
+    ${PROJECT_SOURCE_DIR}/cmake/Modules/SoapySDRUtil.cmake
     ${PROJECT_BINARY_DIR}/SoapySDRConfigVersion.cmake)
 if (UNIX)
     install(FILES ${cmake_files} DESTINATION share/cmake/${PROJECT_NAME})
